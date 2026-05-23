@@ -39,7 +39,7 @@ class TimerService:
             self.remaining_seconds = self._current_phase_seconds()
 
     def tick(self) -> bool:
-        """Advance one second. Returns False when timer has finished."""
+        """Advance one second. Returns whether the timer is still running."""
         if not self.is_running or self.remaining_seconds <= 0:
             return self.is_running
 
@@ -47,7 +47,7 @@ class TimerService:
         if self.remaining_seconds == 0:
             self.is_running = False
             self._advance_phase()
-        return True
+        return self.is_running
 
     def _advance_phase(self) -> None:
         if self.phase == TimerPhase.WORK:

@@ -30,9 +30,3 @@ python -m client.main
 ```bash
 pytest
 ```
-
-If ROS pytest plugins interfere on your machine, use:
-
-```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest
-```

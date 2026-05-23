@@ -33,8 +33,9 @@ def test_timer_moves_to_break_when_work_finishes():
     service = TimerService(work_seconds=1, break_seconds=5)
     service.start()
 
-    service.tick()
+    still_running = service.tick()
 
+    assert still_running is False
     assert service.phase == TimerPhase.SHORT_BREAK
     assert service.remaining_seconds == 5
     assert service.is_running is False

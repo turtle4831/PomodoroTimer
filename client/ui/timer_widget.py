@@ -2,11 +2,14 @@
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
     QSpinBox,
+    QStyle,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -33,6 +36,11 @@ class TimerWidget(QWidget):
         self._phase_label.setObjectName("phaseLabel")
         self._phase_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        self._notification_label = QLabel("Notifications will appear when a timer ends.")
+        self._notification_label.setObjectName("notificationLabel")
+        self._notification_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._notification_label.setWordWrap(True)
+
         self._start_button = QPushButton("Start")
         self._pause_button = QPushButton("Pause")
         self._reset_button = QPushButton("Reset")
@@ -56,6 +64,7 @@ class TimerWidget(QWidget):
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
         self._tick.timeout.connect(self._on_tick)
+        self._tray_icon = self._create_tray_icon()
 
         settings = QHBoxLayout()
         settings.setSpacing(16)
@@ -76,6 +85,7 @@ class TimerWidget(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._display)
         layout.addWidget(self._phase_label)
+        layout.addWidget(self._notification_label)
         layout.addLayout(settings)
         layout.addLayout(controls)
 
@@ -99,6 +109,12 @@ class TimerWidget(QWidget):
                 font-size: 20px;
                 font-weight: 700;
                 text-transform: uppercase;
+            }
+
+            QLabel#notificationLabel {
+                color: #b8efe1;
+                font-size: 14px;
+                font-weight: 500;
             }
 
             QLabel#settingLabel {
@@ -154,6 +170,18 @@ class TimerWidget(QWidget):
             """
         )
 
+    def _create_tray_icon(self) -> QSystemTrayIcon | None:
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return None
+
+        tray_icon = QSystemTrayIcon(self)
+        tray_icon.setToolTip("Pomodoro Study Timer")
+        tray_icon.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+        )
+        tray_icon.show()
+        return tray_icon
+
     def _setting_group(self, label: str, input_widget: QSpinBox) -> QWidget:
         label_widget = QLabel(label)
         label_widget.setObjectName("settingLabel")
@@ -186,12 +214,14 @@ class TimerWidget(QWidget):
         self._refresh_display()
 
     def _on_tick(self) -> None:
+        finished_phase = self._service.phase
         if self._service.tick():
             self._refresh_display()
         else:
             self._tick.stop()
             self._set_duration_inputs_enabled(True)
             self._refresh_display()
+            self._notify_timer_finished(finished_phase)
 
     def _on_duration_changed(self) -> None:
         self._service.set_durations(
@@ -207,6 +237,25 @@ class TimerWidget(QWidget):
     def _set_duration_inputs_enabled(self, enabled: bool) -> None:
         self._work_minutes_input.setEnabled(enabled)
         self._break_minutes_input.setEnabled(enabled)
+
+    def _notify_timer_finished(self, finished_phase: TimerPhase) -> None:
+        if finished_phase == TimerPhase.WORK:
+            title = "Work session complete"
+            message = "Break Time!!!!"
+        else:
+            title = "Break complete"
+            message = "Break is over. Ready for another work session? :3"
+
+        self._notification_label.setText(message)
+        QApplication.beep()
+
+        if self._tray_icon is not None and QSystemTrayIcon.supportsMessages():
+            self._tray_icon.showMessage(
+                title,
+                message,
+                QSystemTrayIcon.MessageIcon.Information,
+                5000,
+            )
 
     def _format_time(self, total_seconds: int) -> str:
         minutes, seconds = divmod(total_seconds, 60)
